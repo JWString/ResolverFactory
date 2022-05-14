@@ -66,7 +66,7 @@ namespace ResolverFactoryTests
             }
             catch (InvalidOperationException ex)
             {
-                Assert.NotNull(ex);
+                Assert.IsType<InvalidOperationException>(ex);
             }
 
             try
@@ -87,7 +87,7 @@ namespace ResolverFactoryTests
             }
             catch (InvalidOperationException ex)
             {
-                Assert.NotNull(ex);
+                Assert.IsType<InvalidOperationException>(ex);
             }
         }
 
@@ -181,6 +181,52 @@ namespace ResolverFactoryTests
             Assert.True(s1Disposed);
             Assert.True(s2Disposed);
             Assert.True(s3Disposed);
+        }
+
+        [Fact]
+        public async void Parallelizes()
+        {
+            var r1 = ServiceProvider.GetRequiredService<IResolver<StandardServiceA>>();
+            var r2 = ServiceProvider.GetRequiredService<IResolver<StandardServiceB>>();
+            var r3 = ServiceProvider.GetRequiredService<IResolver<StandardServiceC>>();
+            var scopeFactory = ServiceProvider.GetRequiredService<IServiceScopeFactory>();
+
+            int s1DisposedCount = 0;
+            int s2DisposedCount = 0;
+            int s3DisposedCount = 0;
+
+            var threads = new System.Collections.Concurrent.ConcurrentDictionary<int, int>();
+            var scope = scopeFactory.CreateScope();
+
+            for (int i = 0; i < 1000; i++)
+            {
+                await r1.Resolve(s1 => Task.Run(async () =>
+                {
+                    var c = threads.GetOrAdd(Environment.CurrentManagedThreadId, 0);
+                    threads.TryUpdate(Environment.CurrentManagedThreadId, c + 1, c);
+                    s1.OnDispose = () => { s1DisposedCount++; };
+                    await r2.Resolve(s2 => Task.Run(async () =>
+                    {
+                        var c = threads.GetOrAdd(Environment.CurrentManagedThreadId, 0);
+                        threads.TryUpdate(Environment.CurrentManagedThreadId, c + 1, c);
+                        s2.OnDispose = () => { s2DisposedCount++; };
+                        await r3.Resolve(s3 => Task.Run(() =>
+                        {
+                            var c = threads.GetOrAdd(Environment.CurrentManagedThreadId, 0);
+                            threads.TryUpdate(Environment.CurrentManagedThreadId, c + 1, c);
+                            s3.OnDispose = () => { s3DisposedCount++; };
+                        }), scope);
+                    }), scope);
+                }), scope);
+            }
+
+            scope.Dispose();
+
+            Assert.True(threads.Count > 1);
+            Assert.True(threads.Values.All(c => c > 0));
+            Assert.Equal(1000, s1DisposedCount);
+            Assert.Equal(1000, s2DisposedCount);
+            Assert.Equal(1000, s3DisposedCount);
         }
     }
 }
