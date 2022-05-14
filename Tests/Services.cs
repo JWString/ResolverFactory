@@ -69,6 +69,7 @@
         }
 
         public Action? OnDispose { get; set; }
+
         public void Dispose()
         {
             if (OnDispose != null)

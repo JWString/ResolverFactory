@@ -10,7 +10,7 @@ namespace Services
 
     public abstract class ResolverFactory
     {
-        protected class ResolutionContext
+        private class ResolutionContext
         {
             public HashSet<Type> CallRegistry = new();
             public IServiceScope? Scope = null;

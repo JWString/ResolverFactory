@@ -232,7 +232,7 @@ namespace ResolverFactoryTests
             scope.Dispose();
 
             Assert.True(threads.Count > 1);
-            Assert.True(threads.Values.All(c => c > 0));
+            Assert.Equal(3000, threads.Values.Sum());
             Assert.Equal(1000, s1DisposedCount);
             Assert.Equal(1000, s2DisposedCount);
             Assert.Equal(1000, s3DisposedCount);
