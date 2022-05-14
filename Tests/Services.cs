@@ -1,6 +1,4 @@
-﻿using Services;
-
-namespace Services
+﻿namespace Services
 {
     public class CycleServiceA
     {
@@ -11,8 +9,6 @@ namespace Services
         {
             _rServiceB = rServiceB;
         }
-
-        public string Value { get => "CycleServiceA"; }
 
         public string Test()
         {
@@ -29,8 +25,6 @@ namespace Services
             _rServiceC = rServiceC;
         }
 
-        public string Value { get => "CycleServiceB"; }
-
         public string Test()
         {
             return _rServiceC.Resolve(s => s.Test());
@@ -45,8 +39,6 @@ namespace Services
         {
             _rServiceA = rServiceA;
         }
-
-        public string Value { get => "CycleServiceC"; }
 
         public string Test()
         {
