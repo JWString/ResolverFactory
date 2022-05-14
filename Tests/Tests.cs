@@ -59,15 +59,21 @@ namespace ResolverFactoryTests
         [Fact]
         public void DetectsCycles()
         {
+            Exception? ex = null;
+
             try
             {
                 var resolver = ServiceProvider.GetRequiredService<IResolver<CycleServiceA>>();
                 resolver.Resolve(s => s.Test());
             }
-            catch (InvalidOperationException ex)
+            catch (InvalidOperationException caught)
             {
-                Assert.IsType<InvalidOperationException>(ex);
+                ex = caught;
             }
+
+            Assert.NotNull(ex);            
+            Assert.IsType<InvalidOperationException>(ex);
+            ex = null;
 
             try
             {
@@ -85,10 +91,13 @@ namespace ResolverFactoryTests
                     });
                 });
             }
-            catch (InvalidOperationException ex)
+            catch (InvalidOperationException caught)
             {
-                Assert.IsType<InvalidOperationException>(ex);
+                ex = caught;
             }
+
+            Assert.NotNull(ex);
+            Assert.IsType<InvalidOperationException>(ex);
         }
 
         [Fact]
