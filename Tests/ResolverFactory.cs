@@ -17,6 +17,51 @@ namespace Services
             public bool? ScopeRequiresDisposal = null;
         }
 
+        protected class Resolver<TService> : IResolver<TService>
+        where TService : notnull
+        {
+            private readonly Func<Type, IServiceScope?, IServiceProvider> _registerWithResolutionContext;
+            private readonly Action<Type> _unregisterFromResolutionContext;
+
+            public Resolver(
+                Func<Type, IServiceScope?, IServiceProvider> registerWithResolutionContext,
+                Action<Type> unregisterFromResolutionContext)
+            {
+                _registerWithResolutionContext = registerWithResolutionContext;
+                _unregisterFromResolutionContext = unregisterFromResolutionContext;
+            }
+
+            public virtual TResult Resolve<TResult>(Func<TService, TResult> onResolved, IServiceScope? scope = null)
+            {
+                var provider = _registerWithResolutionContext(typeof(TService), scope);
+
+                try
+                {
+                    var service = provider.GetRequiredService<TService>();
+                    return onResolved(service);
+                }
+                finally
+                {
+                    _unregisterFromResolutionContext(typeof(TService));
+                }
+            }
+
+            public virtual void Resolve(Action<TService> onResolved, IServiceScope? scope = null)
+            {
+                var provider = _registerWithResolutionContext(typeof(TService), scope);
+
+                try
+                {
+                    var service = provider.GetRequiredService<TService>();
+                    onResolved(service);
+                }
+                finally
+                {
+                    _unregisterFromResolutionContext(typeof(TService));
+                }
+            }
+        }
+
         private readonly ConcurrentDictionary<int, ResolutionContext> _contexts;
 
         public ResolverFactory()
@@ -41,14 +86,10 @@ namespace Services
                 if (context.Scope == null)
                 {
                     context.Scope = scope;
-                    bool? ignore = null;
-                    provider = ResolveProvider(ref context.Scope, ref ignore);
                 }
-                else
-                {
-                    bool? ignore = null;
-                    provider = ResolveProvider(ref scope, ref ignore);
-                }
+
+                bool? ignore = null;
+                provider = ResolveProvider(ref scope, ref ignore);
             }
             else
             {
@@ -86,7 +127,12 @@ namespace Services
 
         protected abstract IServiceProvider ResolveProvider(ref IServiceScope? scope, ref bool? scopeRequiresDisposal);
 
-        public abstract IResolver<TService> CreateResolver<TService>() where TService : notnull;
+        public virtual IResolver<TService> CreateResolver<TService>()
+        where TService : notnull
+        {
+            return new Resolver<TService>(RegisterWithResolutionContext, UnregisterFromResolutionContext);
+        }
+
     }
 
     public class ResolverFactoryForAspNet6 : ResolverFactory
@@ -120,56 +166,6 @@ namespace Services
             }
 
             return provider;
-        }
-
-        protected class Resolver<TService> : IResolver<TService>
-        where TService : notnull
-        {
-            private readonly Func<Type, IServiceScope?, IServiceProvider> _registerWithResolutionContext;
-            private readonly Action<Type> _unregisterFromResolutionContext;
-
-            public Resolver(
-                Func<Type, IServiceScope?, IServiceProvider> registerWithResolutionContext,
-                Action<Type> unregisterFromResolutionContext)
-            {
-                _registerWithResolutionContext = registerWithResolutionContext;
-                _unregisterFromResolutionContext = unregisterFromResolutionContext;
-            }
-
-            public TResult Resolve<TResult>(Func<TService, TResult> onResolved, IServiceScope? scope = null)
-            {
-                var provider = _registerWithResolutionContext(typeof(TService), scope);
-
-                try
-                {
-                    var service = provider.GetRequiredService<TService>();
-                    return onResolved(service);
-                }
-                finally
-                {
-                    _unregisterFromResolutionContext(typeof(TService));
-                }
-            }
-
-            public void Resolve(Action<TService> onResolved, IServiceScope? scope = null)
-            {
-                var provider = _registerWithResolutionContext(typeof(TService), scope);
-
-                try
-                {
-                    var service = provider.GetRequiredService<TService>();
-                    onResolved(service);
-                }
-                finally
-                {
-                    _unregisterFromResolutionContext(typeof(TService));
-                }
-            }
-        }
-
-        public override IResolver<TService> CreateResolver<TService>()
-        {
-            return new Resolver<TService>(RegisterWithResolutionContext, UnregisterFromResolutionContext);
         }
     }
 
