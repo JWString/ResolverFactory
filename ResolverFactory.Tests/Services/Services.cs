@@ -1,9 +1,10 @@
-﻿namespace Services
+﻿using ResolverFactory;
+
+namespace Services
 {
     public class CycleServiceA
     {
-
-        IResolver<CycleServiceB> _rServiceB;
+        readonly IResolver<CycleServiceB> _rServiceB;
 
         public CycleServiceA(IResolver<CycleServiceB> rServiceB)
         {
@@ -18,7 +19,7 @@
 
     public class CycleServiceB
     {
-        IResolver<CycleServiceC> _rServiceC;
+        readonly IResolver<CycleServiceC> _rServiceC;
 
         public CycleServiceB(IResolver<CycleServiceC> rServiceC)
         {
@@ -33,7 +34,7 @@
 
     public class CycleServiceC
     {
-        IResolver<CycleServiceA> _rServiceA;
+        readonly IResolver<CycleServiceA> _rServiceA;
 
         public CycleServiceC(IResolver<CycleServiceA> rServiceA)
         {
@@ -53,8 +54,7 @@
 
     public class StandardServiceA : IDisposable
     {
-
-        IResolver<StandardServiceB> _rServiceB;
+        readonly IResolver<StandardServiceB> _rServiceB;
 
         public StandardServiceA(IResolver<StandardServiceB> rServiceB)
         {
@@ -72,16 +72,13 @@
 
         public void Dispose()
         {
-            if (OnDispose != null)
-            {
-                OnDispose(); 
-            }
+            OnDispose?.Invoke();
         }
     }
 
     public class StandardServiceB : IDisposable
     {
-        IResolver<StandardServiceC> _rServiceC;
+        readonly IResolver<StandardServiceC> _rServiceC;
 
         public StandardServiceB(IResolver<StandardServiceC> rServiceC)
         {
@@ -99,16 +96,13 @@
 
         public void Dispose()
         {
-            if (OnDispose != null)
-            {
-                OnDispose();
-            }
+            OnDispose?.Invoke();
         }
     }
 
     public class StandardServiceC : IDisposable
     {
-        IResolver<StandardServiceA> _rServiceA;
+        readonly IResolver<StandardServiceA> _rServiceA;
 
         public StandardServiceC(IResolver<StandardServiceA> rServiceA)
         {
@@ -126,10 +120,7 @@
 
         public void Dispose()
         {
-            if (OnDispose != null)
-            {
-                OnDispose();
-            }
+            OnDispose?.Invoke();
         }
     }
 }

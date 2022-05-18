@@ -1,13 +1,8 @@
-﻿using System.Collections.Concurrent;
+﻿using Microsoft.Extensions.DependencyInjection;
+using System.Collections.Concurrent;
 
-namespace Services
+namespace ResolverFactory
 {
-    public interface IResolver<TService>
-    {
-        TResult Resolve<TResult>(Func<TService, TResult> onResolved, IServiceScope? scope = null);
-        void Resolve(Action<TService> onResolved, IServiceScope? scope = null);
-    }
-
     public abstract class ResolverFactory
     {
         private class ResolutionContext
@@ -131,55 +126,6 @@ namespace Services
         where TService : notnull
         {
             return new Resolver<TService>(RegisterWithResolutionContext, UnregisterFromResolutionContext);
-        }
-
-    }
-
-    public class ResolverFactoryForAspNet6 : ResolverFactory
-    {
-        private readonly IHttpContextAccessor _contextAccessor;
-        private readonly IServiceScopeFactory _scopeFactory;
-
-        public ResolverFactoryForAspNet6(IHttpContextAccessor contextAccessor, IServiceScopeFactory scopeFactory)
-        {
-            _contextAccessor = contextAccessor;
-            _scopeFactory = scopeFactory;
-        }
-
-        protected override IServiceProvider ResolveProvider(ref IServiceScope? scope, ref bool? scopeRequiresDisposal)
-        {
-            IServiceProvider provider;
-
-            if (scope != null)
-            {
-                provider = scope.ServiceProvider;
-            }
-            else if (_contextAccessor.HttpContext != null)
-            {
-                provider = _contextAccessor.HttpContext!.RequestServices;
-            }
-            else
-            {
-                scope = _scopeFactory.CreateScope();
-                scopeRequiresDisposal = true;
-                provider = scope.ServiceProvider;
-            }
-
-            return provider;
-        }
-    }
-
-    public static class ResolverFactoryExtensions
-    {
-        public static IServiceCollection AddResolverFactoryForAspNet6(this IServiceCollection collection)
-        {
-            return collection.AddSingleton(typeof(ResolverFactory), typeof(ResolverFactoryForAspNet6));
-        }
-
-        public static IServiceCollection AddResolverForService<TService>(this IServiceCollection collection)
-        where TService : notnull
-        {
-            return collection.AddTransient(provider => provider.GetRequiredService<ResolverFactory>().CreateResolver<TService>());
         }
     }
 }

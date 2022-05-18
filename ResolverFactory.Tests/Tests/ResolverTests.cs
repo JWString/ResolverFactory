@@ -1,54 +1,42 @@
-﻿using Moq;
-using Xunit;
+﻿using Xunit;
+using ResolverFactory;
+using ContainerFixtures;
 using Services;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace ResolverFactoryTests
+namespace Tests
 {
-
-    public class UnitTests
+    public abstract class ResolverTests : IDisposable
     {
-        IServiceProvider ServiceProvider { get; set; }
+        private bool _disposed;
+        private readonly ContainerFixture _fixture;
 
-        public UnitTests()
+        public ResolverTests(ContainerFixture fixture)
         {
-            var contextAccessor = new Mock<IHttpContextAccessor>();
-            var httpContext = new DefaultHttpContext();
-            contextAccessor.Setup(m => m.HttpContext).Returns(httpContext);
+            _fixture = fixture;
+        }
 
-            ServiceProvider = new ServiceCollection()
-                .AddSingleton(contextAccessor.Object)
-                .AddSingleton<CycleServiceA>()
-                .AddSingleton<CycleServiceB>()
-                .AddSingleton<CycleServiceC>()
-                .AddTransient<StandardServiceA>()
-                .AddTransient<StandardServiceB>()
-                .AddTransient<StandardServiceC>()
-                .AddTransient<StandardService>()
-                .AddResolverFactoryForAspNet6()
-                .AddResolverForService<CycleServiceA>()
-                .AddResolverForService<CycleServiceB>()
-                .AddResolverForService<CycleServiceC>()
-                .AddResolverForService<StandardServiceA>()
-                .AddResolverForService<StandardServiceB>()
-                .AddResolverForService<StandardServiceC>()
-                .AddResolverForService<StandardService>()
-                .BuildServiceProvider();
-
-            httpContext.RequestServices = ServiceProvider;           
+        public void Dispose()
+        {
+            if (!_disposed)
+            {
+                _fixture.Dispose();
+                _disposed = true;
+            }
         }
 
         [Fact]
         public void Resolves()
         {
-            var resolver = ServiceProvider.GetRequiredService<IResolver<StandardService>>();
+            var resolver = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardService>>();
             Assert.Equal("StandardService", resolver.Resolve(s => s.Value));
 
-            var resolver2 = ServiceProvider.GetRequiredService<IResolver<StandardServiceA>>();
+            var resolver2 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceA>>();
             Assert.Equal("StandardServiceB", resolver2.Resolve(s => s.Test()));
 
-            var r1 = ServiceProvider.GetRequiredService<IResolver<StandardServiceA>>();
-            var r2 = ServiceProvider.GetRequiredService<IResolver<StandardServiceB>>();
-            var r3 = ServiceProvider.GetRequiredService<IResolver<StandardServiceC>>();
+            var r1 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceA>>();
+            var r2 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceB>>();
+            var r3 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceC>>();
             var result = r1.Resolve(s1 => s1.Test());
             result += " -> " + r2.Resolve(s2 => s2.Test());
             result += " -> " + r3.Resolve(s3 => s3.Test());
@@ -63,7 +51,7 @@ namespace ResolverFactoryTests
 
             try
             {
-                var resolver = ServiceProvider.GetRequiredService<IResolver<CycleServiceA>>();
+                var resolver = _fixture.ServiceProvider.GetRequiredService<IResolver<CycleServiceA>>();
                 resolver.Resolve(s => s.Test());
             }
             catch (InvalidOperationException caught)
@@ -71,15 +59,15 @@ namespace ResolverFactoryTests
                 ex = caught;
             }
 
-            Assert.NotNull(ex);            
+            Assert.NotNull(ex);
             Assert.IsType<InvalidOperationException>(ex);
             ex = null;
 
             try
             {
-                var r1 = ServiceProvider.GetRequiredService<IResolver<StandardServiceA>>();
-                var r2 = ServiceProvider.GetRequiredService<IResolver<StandardServiceB>>();
-                var r3 = ServiceProvider.GetRequiredService<IResolver<StandardServiceC>>();
+                var r1 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceA>>();
+                var r2 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceB>>();
+                var r3 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceC>>();
                 r1.Resolve(s1 =>
                 {
                     r2.Resolve(s2 =>
@@ -103,16 +91,15 @@ namespace ResolverFactoryTests
         [Fact]
         public void SharesScope()
         {
-            var r1 = ServiceProvider.GetRequiredService<IResolver<StandardServiceA>>();
-            var r2 = ServiceProvider.GetRequiredService<IResolver<StandardServiceB>>();
-            var r3 = ServiceProvider.GetRequiredService<IResolver<StandardServiceC>>();
-            var scopeFactory = ServiceProvider.GetRequiredService<IServiceScopeFactory>();
+            var r1 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceA>>();
+            var r2 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceB>>();
+            var r3 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceC>>();
 
             bool s1Disposed = false;
             bool s2Disposed = false;
             bool s3Disposed = false;
 
-            var scope = scopeFactory.CreateScope();
+            var scope = _fixture.CreateScope();
 
             var result = r1.Resolve(s1 =>
             {
@@ -148,10 +135,7 @@ namespace ResolverFactoryTests
         [Fact]
         public void ManagesScopeAndDisposes()
         {
-            var contextAccessorMock = new Mock<IHttpContextAccessor>();
-            contextAccessorMock.Setup(m => m.HttpContext).Returns(null as HttpContext);
-            var scopeFactory = ServiceProvider.GetRequiredService<IServiceScopeFactory>();
-            var factory = new ResolverFactoryForAspNet6(contextAccessorMock.Object, scopeFactory);
+            var factory = _fixture.CreateFactory();
 
             var r1 = factory.CreateResolver<StandardServiceA>();
             var r2 = factory.CreateResolver<StandardServiceB>();
@@ -195,17 +179,16 @@ namespace ResolverFactoryTests
         [Fact]
         public async void Parallelizes()
         {
-            var r1 = ServiceProvider.GetRequiredService<IResolver<StandardServiceA>>();
-            var r2 = ServiceProvider.GetRequiredService<IResolver<StandardServiceB>>();
-            var r3 = ServiceProvider.GetRequiredService<IResolver<StandardServiceC>>();
-            var scopeFactory = ServiceProvider.GetRequiredService<IServiceScopeFactory>();
+            var r1 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceA>>();
+            var r2 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceB>>();
+            var r3 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceC>>();
 
             int s1DisposedCount = 0;
             int s2DisposedCount = 0;
             int s3DisposedCount = 0;
 
             var threads = new System.Collections.Concurrent.ConcurrentDictionary<int, int>();
-            var scope = scopeFactory.CreateScope();
+            var scope = _fixture.CreateScope();
 
             for (int i = 0; i < 1000; i++)
             {
