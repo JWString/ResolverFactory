@@ -25,7 +25,7 @@ namespace ContainerFixtures
                 .AddTransient<StandardServiceB>()
                 .AddTransient<StandardServiceC>()
                 .AddTransient<StandardService>()
-                .AddResolverFactoryForAspNet6()
+                .AddResolverFactory()
                 .BuildServiceProvider();
 
             httpContext.RequestServices = ServiceProvider;

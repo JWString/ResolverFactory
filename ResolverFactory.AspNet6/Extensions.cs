@@ -4,7 +4,7 @@ namespace ResolverFactory.AspNet6
 {
     public static class Extensions
     {
-        public static IServiceCollection AddResolverFactoryForAspNet6(this IServiceCollection collection)
+        public static IServiceCollection AddResolverFactory(this IServiceCollection collection)
         {
             return collection
                 .AddSingleton<ResolverFactory, ResolverFactoryForAspNet6>()

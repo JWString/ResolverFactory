@@ -11,4 +11,10 @@ namespace Tests
     {
         public AutofacContainer() : base(new AutofacContainerFixture()) { }
     }
+
+    public class SimpleInjectorContainer : ResolverTests
+    {
+        public SimpleInjectorContainer() : base(new SimpleInjectorContainerFixture()) { }
+    }
+
 }
