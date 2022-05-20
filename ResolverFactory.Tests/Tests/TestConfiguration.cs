@@ -1,4 +1,4 @@
-﻿using ContainerFixtures;
+﻿using TestFixtures;
 
 namespace Tests
 {
@@ -10,11 +10,6 @@ namespace Tests
     public class AutofacContainer : ResolverTests
     {
         public AutofacContainer() : base(new AutofacContainerFixture()) { }
-    }
-
-    public class SimpleInjectorContainer : ResolverTests
-    {
-        public SimpleInjectorContainer() : base(new SimpleInjectorContainerFixture()) { }
     }
 
 }

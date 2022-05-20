@@ -1,17 +1,18 @@
-﻿using Xunit;
-using ResolverFactory;
-using ContainerFixtures;
-using Services;
+﻿using TestFixtures;
 using Microsoft.Extensions.DependencyInjection;
+using ResolverFactory;
+using Services;
+using System.Collections.Concurrent;
+using Xunit;
 
 namespace Tests
 {
     public abstract class ResolverTests : IDisposable
     {
         private bool _disposed;
-        private readonly ContainerFixture _fixture;
+        private readonly TestFixture _fixture;
 
-        public ResolverTests(ContainerFixture fixture)
+        public ResolverTests(TestFixture fixture)
         {
             _fixture = fixture;
         }
@@ -26,80 +27,52 @@ namespace Tests
         }
 
         [Fact]
-        public void Resolves()
+        public async void Resolves()
         {
-            var resolver = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardService>>();
-            Assert.Equal("StandardService", resolver.Resolve(s => s.Value));
+            var app = _fixture.CreateWebApplication();
+            var client = app.CreateClient();
 
-            var resolver2 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceA>>();
-            Assert.Equal("StandardServiceB", resolver2.Resolve(s => s.Test()));
+            var result = await client.GetStringAsync("/StandardService");
+            var resultA = await client.GetStringAsync("/StandardServiceA");
+            var resultB = await client.GetStringAsync("/StandardServiceB");
+            var resultC = await client.GetStringAsync("/StandardServiceC");
 
-            var r1 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceA>>();
-            var r2 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceB>>();
-            var r3 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceC>>();
-            var result = r1.Resolve(s1 => s1.Test());
-            result += " -> " + r2.Resolve(s2 => s2.Test());
-            result += " -> " + r3.Resolve(s3 => s3.Test());
-
-            Assert.Equal("StandardServiceB -> StandardServiceC -> StandardServiceA", result);
+            Assert.Equal("StandardService", result);
+            Assert.Equal("StandardServiceA", resultA);
+            Assert.Equal("StandardServiceB", resultB);
+            Assert.Equal("StandardServiceC", resultC);
         }
 
         [Fact]
-        public void DetectsCycles()
+        public async void DetectsCycles()
         {
-            Exception? ex = null;
+            var app = _fixture.CreateWebApplication();
+            var client = app.CreateClient();
 
-            try
-            {
-                var resolver = _fixture.ServiceProvider.GetRequiredService<IResolver<CycleServiceA>>();
-                resolver.Resolve(s => s.Test());
-            }
-            catch (InvalidOperationException caught)
-            {
-                ex = caught;
-            }
+            var response1 = await client.GetAsync("/Cycle1");
+            var message1 = await response1.Content.ReadAsStringAsync();
+            var response2 = await client.GetAsync("/Cycle2");
+            var message2 = await response2.Content.ReadAsStringAsync();
 
-            Assert.NotNull(ex);
-            Assert.IsType<InvalidOperationException>(ex);
-            ex = null;
-
-            try
-            {
-                var r1 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceA>>();
-                var r2 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceB>>();
-                var r3 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceC>>();
-                r1.Resolve(s1 =>
-                {
-                    r2.Resolve(s2 =>
-                    {
-                        r3.Resolve(s3 =>
-                        {
-                            s3.Test();
-                        });
-                    });
-                });
-            }
-            catch (InvalidOperationException caught)
-            {
-                ex = caught;
-            }
-
-            Assert.NotNull(ex);
-            Assert.IsType<InvalidOperationException>(ex);
+            Assert.Equal(500, (int)response1.StatusCode);
+            Assert.Equal("Cycle detected by ResolverFactory RegisterWithResolutionContext.", message1);
+            Assert.Equal(500, (int)response2.StatusCode);
+            Assert.Equal("Cycle detected by ResolverFactory RegisterWithResolutionContext.", message2);
         }
 
         [Fact]
         public void SharesScope()
         {
-            var r1 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceA>>();
-            var r2 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceB>>();
-            var r3 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceC>>();
+            var app = _fixture.CreateWebApplication();
+            var r1 = app.Services.GetRequiredService<IResolver<StandardServiceA>>();
+            var r2 = app.Services.GetRequiredService<IResolver<StandardServiceB>>();
+            var r3 = app.Services.GetRequiredService<IResolver<StandardServiceC>>();
 
             bool s1Disposed = false;
             bool s2Disposed = false;
             bool s3Disposed = false;
 
-            var scope = _fixture.CreateScope();
+            var scope = app.Services.CreateScope();
 
             var result = r1.Resolve(s1 =>
             {
@@ -133,13 +106,12 @@ namespace Tests
         }
 
         [Fact]
-        public void ManagesScopeAndDisposes()
+        public void ManagesScope()
         {
-            var factory = _fixture.CreateFactory();
-
-            var r1 = factory.CreateResolver<StandardServiceA>();
-            var r2 = factory.CreateResolver<StandardServiceB>();
-            var r3 = factory.CreateResolver<StandardServiceC>();
+            var app = _fixture.CreateWebApplication();
+            var r1 = app.Services.GetRequiredService<IResolver<StandardServiceA>>();
+            var r2 = app.Services.GetRequiredService<IResolver<StandardServiceB>>();
+            var r3 = app.Services.GetRequiredService<IResolver<StandardServiceC>>();
 
             bool s1Disposed = false;
             bool s2Disposed = false;
@@ -177,41 +149,55 @@ namespace Tests
         }
 
         [Fact]
+        public async void UsesRequestLifetimeScope()
+        {
+            var app = _fixture.CreateWebApplication();
+            var client = app.CreateClient();
+
+            var result = await client.GetStringAsync("/ManagedByRequestLifetimeScope");
+            var count = int.Parse(await client.GetStringAsync("/DisposedCount"));
+
+            Assert.Equal("StandardServiceA -> StandardServiceB -> StandardServiceC", result);
+            Assert.Equal(3, count);
+        }
+
+        [Fact]
         public async void Parallelizes()
         {
-            var r1 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceA>>();
-            var r2 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceB>>();
-            var r3 = _fixture.ServiceProvider.GetRequiredService<IResolver<StandardServiceC>>();
-
+            var app = _fixture.CreateWebApplication();
+            var r1 = app.Services.GetRequiredService<IResolver<StandardServiceA>>();
+            var r2 = app.Services.GetRequiredService<IResolver<StandardServiceB>>();
+            var r3 = app.Services.GetRequiredService<IResolver<StandardServiceC>>();
             int s1DisposedCount = 0;
             int s2DisposedCount = 0;
             int s3DisposedCount = 0;
-
-            var threads = new System.Collections.Concurrent.ConcurrentDictionary<int, int>();
-            var scope = _fixture.CreateScope();
+            var threads = new ConcurrentDictionary<int, int>();
+            var tasks = new ConcurrentStack<Task>();
+            var scope = app.Services.CreateScope();
 
             for (int i = 0; i < 1000; i++)
             {
-                await r1.Resolve(s1 => Task.Run(async () =>
+                tasks.Push(r1.Resolve(s1 => Task.Run(() =>
                 {
                     var c = threads.GetOrAdd(Environment.CurrentManagedThreadId, 0);
                     threads.TryUpdate(Environment.CurrentManagedThreadId, c + 1, c);
                     s1.OnDispose = () => { s1DisposedCount++; };
-                    await r2.Resolve(s2 => Task.Run(async () =>
+                    tasks.Push(r2.Resolve(s2 => Task.Run(() =>
                     {
                         var c = threads.GetOrAdd(Environment.CurrentManagedThreadId, 0);
                         threads.TryUpdate(Environment.CurrentManagedThreadId, c + 1, c);
                         s2.OnDispose = () => { s2DisposedCount++; };
-                        await r3.Resolve(s3 => Task.Run(() =>
+                        tasks.Push(r3.Resolve(s3 => Task.Run(() =>
                         {
                             var c = threads.GetOrAdd(Environment.CurrentManagedThreadId, 0);
                             threads.TryUpdate(Environment.CurrentManagedThreadId, c + 1, c);
                             s3.OnDispose = () => { s3DisposedCount++; };
-                        }), scope);
-                    }), scope);
-                }), scope);
+                        }), scope));
+                    }), scope));
+                }), scope));
             }
 
+            await Task.WhenAll(tasks);
             scope.Dispose();
 
             Assert.True(threads.Count > 1);
