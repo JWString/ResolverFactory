@@ -155,9 +155,11 @@ namespace Tests
             var client = app.CreateClient();
 
             var result = await client.GetStringAsync("/ManagedByRequestLifetimeScope");
+            var scopePersisted = bool.Parse(await client.GetStringAsync("/ScopedBoolean"));
             var count = int.Parse(await client.GetStringAsync("/DisposedCount"));
 
             Assert.Equal("StandardServiceA -> StandardServiceB -> StandardServiceC", result);
+            Assert.False(scopePersisted);
             Assert.Equal(3, count);
         }
 

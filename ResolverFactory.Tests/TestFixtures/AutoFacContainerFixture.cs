@@ -24,6 +24,7 @@ namespace TestFixtures
                         .AddTransient<StandardServiceB>()
                         .AddTransient<StandardServiceC>()
                         .AddTransient<StandardService>()
+                        .AddScoped<ScopedBoolean>()
                         .AddSingleton<DisposeCounter>()
                         .AddResolverFactory();
                 });

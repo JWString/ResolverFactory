@@ -62,26 +62,42 @@ app.MapGet(
         [FromServices] IResolver<StandardServiceA> r1,
         [FromServices] IResolver<StandardServiceB> r2,
         [FromServices] IResolver<StandardServiceC> r3,
+        [FromServices] IResolver<ScopedBoolean> rBoolean,
+        [FromServices] ScopedBoolean scopedBoolean,
         [FromServices] DisposeCounter counter
     ) =>
     {
-        var result = r1.Resolve(s1 =>
+        scopedBoolean.Value = true;
+
+        var result = rBoolean.Resolve(b =>
         {
-            s1.OnDispose = () => { counter.Count++; };
-            return s1.Value + " -> " + r2.Resolve(s2 =>
-            {
-                s2.OnDispose = () => { counter.Count++; };
-                return s2.Value + " -> " + r3.Resolve(s3 =>
-                {
-                    s3.OnDispose = () => { counter.Count++; };
-                    return s3.Value;
-                });
-            });
+            return b.Value
+
+                ?   r1.Resolve(s1 =>
+                    {
+                        s1.OnDispose = () => { counter.Count++; };
+                        return s1.Value + " -> " + r2.Resolve(s2 =>
+                        {
+                            s2.OnDispose = () => { counter.Count++; };
+                            return s2.Value + " -> " + r3.Resolve(s3 =>
+                            {
+                                s3.OnDispose = () => { counter.Count++; };
+                                return s3.Value;
+                            });
+                        });
+                    })
+
+                :   "Failed";
         });
 
         return result;
     }
 );
+
+app.MapGet("ScopedBoolean", ([FromServices] ScopedBoolean scopedBoolean) =>
+{
+    return scopedBoolean.Value;
+});
 
 app.MapGet("DisposedCount", ([FromServices] DisposeCounter counter) =>
 {
