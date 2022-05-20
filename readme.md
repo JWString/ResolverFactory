@@ -20,9 +20,9 @@
 
 ## Intended Use
 
-#### Configuring `ResolverFactory`
+#### Configuring `ResolverFactory`:
 
-Simply add a call to the `AddResolverFactory()` extension method to your `IServiceCollection` configuration at app startup.  Any additional dependencies managed by the IoC container should be available as `IResolver<TService>`.
+Simply add a call to the `AddResolverFactory` extension method to your `IServiceCollection` configuration at app startup.  Any additional dependencies managed by the IoC container should be available as `IResolver<TService>`.
 
 #### Injecting dependency-specific resolvers:
 ```c#
@@ -41,7 +41,7 @@ Simply add a call to the `AddResolverFactory()` extension method to your `IServi
  }
 ```
 
-#### Recommended use of `IResolver`
+#### Recommended use of `IResolver`:
 
 In most cases, an `IResolver` should be used as in the following example:
 
@@ -79,7 +79,7 @@ When making any of the following changes to any service that the above depends o
 ```c#
 var result = rService.Resolve(service => service.GetResult());
 ```
-**AFter the lifetime of any dependency of the service's dependency is changed:**
+**After the lifetime of any dependency of the service's dependency is changed:**
 ```c#
 var result = rService.Resolve(service => service.GetResult());
 ```
