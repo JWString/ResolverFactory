@@ -6,6 +6,11 @@
     <Nullable>enable</Nullable>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Version>0.1.0</Version>
+    <Description>An experimental IoC pattern for offloading code with dependencies to external Resolver components.</Description>
+    <RepositoryUrl>https://github.com/JWString/ResolverFactory</RepositoryUrl>
+    <PackageTags>IOC;DI;</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
