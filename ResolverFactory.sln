@@ -10,6 +10,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{1F5BF74A-0284-4E86-928E-2E7489E230F9}"
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
+		LICENSE = LICENSE
+		readme.md = readme.md
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ResolverFactory.Tests", "ResolverFactory.Tests\ResolverFactory.Tests.csproj", "{8D71CC94-596A-4AF1-AD44-9676D946F2FF}"
