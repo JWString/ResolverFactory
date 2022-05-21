@@ -10,7 +10,10 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{1F5BF74A-0284-4E86-928E-2E7489E230F9}"
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
+		.github\workflows\dotnet.yml = .github\workflows\dotnet.yml
+		.build\GetBuildVersion.psm1 = .build\GetBuildVersion.psm1
 		LICENSE = LICENSE
+		.github\workflows\publish.yml = .github\workflows\publish.yml
 		readme.md = readme.md
 	EndProjectSection
 EndProject
